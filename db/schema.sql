@@ -1,7 +1,3 @@
--- Esquema de la base de datos. Lo usan:
---   * MySQL (ejecútelo una vez en su base de datos; ver el README)
---   * las pruebas (H2 en memoria, modo MySQL)
--- Mantenga SQL estándar para que funcione en ambos.
 
 -- Un árbol genealógico guardado (su nombre y cuándo se creó).
 CREATE TABLE IF NOT EXISTS arboles (
