@@ -52,7 +52,7 @@ public final class Posicion {
      */
     public static boolean esSujeto(String posicion) {
         // TODO Etapa 1
-        throw new UnsupportedOperationException("TODO: esSujeto");
+        return SUJETO.equals(posicion);
     }
 
     /**
@@ -62,7 +62,16 @@ public final class Posicion {
      */
     public static boolean esAhnentafel(String posicion) {
         // TODO Etapa 1
-        throw new UnsupportedOperationException("TODO: esAhnentafel");
+        if (posicion == null || !posicion.matches("[1-9][0-9]*")) {
+            return false;
+        }
+
+        try {
+            int numero = Integer.parseInt(posicion);
+            return numero >= 1 && numero <= MAX_AHNENTAFEL;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     /**
@@ -73,7 +82,26 @@ public final class Posicion {
      */
     public static boolean esDAboville(String posicion) {
         // TODO Etapa 1
-        throw new UnsupportedOperationException("TODO: esDAboville");
+        if (posicion == null || posicion.length() > MAX_LONGITUD
+                || !posicion.matches("1(\\.[1-9][0-9]*)+")) {
+            return false;
+        }
+
+        String[] partes = posicion.split("\\.");
+
+        for (int i = 1; i < partes.length; i++) {
+            try {
+                int numero = Integer.parseInt(partes[i]);
+
+                if (numero < 1 || numero > MAX_ORDEN) {
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -81,7 +109,7 @@ public final class Posicion {
      */
     public static boolean esValida(String posicion) {
         // TODO Etapa 1
-        throw new UnsupportedOperationException("TODO: esValida");
+        return esAhnentafel(posicion) || esDAboville(posicion);
     }
 
     /**
@@ -89,7 +117,7 @@ public final class Posicion {
      */
     public static boolean esAscendiente(String posicion) {
         // TODO Etapa 1
-        throw new UnsupportedOperationException("TODO: esAscendiente");
+        return esAhnentafel(posicion) && !esSujeto(posicion);
     }
 
     /**
@@ -97,7 +125,7 @@ public final class Posicion {
      */
     public static boolean esDescendiente(String posicion) {
         // TODO Etapa 1
-        throw new UnsupportedOperationException("TODO: esDescendiente");
+        return esDAboville(posicion);
     }
 
     /**
@@ -108,7 +136,12 @@ public final class Posicion {
      */
     public static String posicionDelPadre(String ahnentafel) {
         // TODO Etapa 1
-        throw new UnsupportedOperationException("TODO: posicionDelPadre");
+        if (!esAhnentafel(ahnentafel)) {
+            throw new IllegalArgumentException("Posicion Ahnentafel invalida");
+        }
+
+        int numero = Integer.parseInt(ahnentafel);
+        return String.valueOf(numero * 2);
     }
 
     /**
@@ -118,7 +151,12 @@ public final class Posicion {
      */
     public static String posicionDeLaMadre(String ahnentafel) {
         // TODO Etapa 1
-        throw new UnsupportedOperationException("TODO: posicionDeLaMadre");
+        if (!esAhnentafel(ahnentafel)) {
+            throw new IllegalArgumentException("Posicion Ahnentafel invalida");
+        }
+
+        int numero = Integer.parseInt(ahnentafel);
+        return String.valueOf(numero * 2 + 1);
     }
 
     /**
@@ -129,7 +167,12 @@ public final class Posicion {
      */
     public static String posicionDelHijoEnLinea(String ahnentafel) {
         // TODO Etapa 1
-        throw new UnsupportedOperationException("TODO: posicionDelHijoEnLinea");
+        if (!esAscendiente(ahnentafel)) {
+            throw new IllegalArgumentException("No es un ascendiente valido");
+        }
+
+        int numero = Integer.parseInt(ahnentafel);
+        return String.valueOf(numero / 2);
     }
 
     /**
@@ -140,7 +183,12 @@ public final class Posicion {
      */
     public static String posicionDelProgenitor(String daboville) {
         // TODO Etapa 1
-        throw new UnsupportedOperationException("TODO: posicionDelProgenitor");
+        if (!esDAboville(daboville)) {
+            throw new IllegalArgumentException("Posicion d'Aboville invalida");
+        }
+
+        int ultimoPunto = daboville.lastIndexOf(".");
+        return daboville.substring(0, ultimoPunto);
     }
 
     /**
@@ -150,7 +198,12 @@ public final class Posicion {
      */
     public static int orden(String daboville) {
         // TODO Etapa 1
-        throw new UnsupportedOperationException("TODO: orden");
+        if (!esDAboville(daboville)) {
+            throw new IllegalArgumentException("Posicion d'Aboville invalida");
+        }
+
+        int ultimoPunto = daboville.lastIndexOf(".");
+        return Integer.parseInt(daboville.substring(ultimoPunto + 1));
     }
 
     /**
@@ -162,6 +215,30 @@ public final class Posicion {
      */
     public static int generacion(String posicion) {
         // TODO Etapa 1
-        throw new UnsupportedOperationException("TODO: generacion");
+        if (!esValida(posicion)) {
+            throw new IllegalArgumentException("Posicion invalida");
+        }
+
+        if (esAhnentafel(posicion)) {
+            int numero = Integer.parseInt(posicion);
+            int generacion = 0;
+
+            while (numero > 1) {
+                numero = numero / 2;
+                generacion++;
+            }
+
+            return generacion;
+        }
+
+        int generacion = 0;
+
+        for (int i = 0; i < posicion.length(); i++) {
+            if (posicion.charAt(i) == '.') {
+                generacion++;
+            }
+        }
+
+        return generacion;
     }
 }
