@@ -1,6 +1,8 @@
 package co.umariana.modelo;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Comparator;
 
 /**
  * El árbol genealógico: un SUJETO (posición "1") con sus ASCENDIENTES (padres, abuelos... en Ahnentafel)
@@ -39,6 +41,22 @@ public class ArbolGenealogico {
 
     // TODO Etapa 2: declare la clase interna Nodo y los atributos necesarios (raíz, cantidad de miembros...).
 
+    private static class Nodo {
+
+        Persona persona;
+        Nodo padre;
+        Nodo madre;
+        List<Nodo> hijos;
+
+        Nodo(Persona persona) {
+            this.persona = persona;
+            this.hijos = new ArrayList<>();
+        }
+    }
+
+    private final Nodo raiz;
+    private int cantidad;
+
     /**
      * Crea un árbol que solo tiene al sujeto.
      *
@@ -47,19 +65,32 @@ public class ArbolGenealogico {
      */
     public ArbolGenealogico(Persona sujeto) {
         // TODO Etapa 2
-        throw new UnsupportedOperationException("TODO: constructor");
+        if (sujeto == null) {
+            throw new IllegalArgumentException(
+                    "El sujeto no puede ser nulo");
+        }
+
+        sujeto.validar();
+
+        if (!Posicion.esSujeto(sujeto.getPosicion())) {
+            throw new ArbolInvalidoException(
+                    "El sujeto debe tener la posicion 1");
+        }
+
+        raiz = new Nodo(sujeto);
+        cantidad = 1;
     }
 
     /** @return el sujeto (la persona de la posición "1") */
     public Persona sujeto() {
         // TODO Etapa 2
-        throw new UnsupportedOperationException("TODO: sujeto");
+        return raiz.persona;
     }
 
     /** @return cuántos miembros tiene el árbol (el sujeto cuenta; un árbol nuevo tiene 1) */
     public int tamano() {
         // TODO Etapa 2
-        throw new UnsupportedOperationException("TODO: tamano");
+        return cantidad;
     }
 
     /**
@@ -67,13 +98,80 @@ public class ArbolGenealogico {
      */
     public Persona buscar(String posicion) {
         // TODO Etapa 2
-        throw new UnsupportedOperationException("TODO: buscar");
+        Nodo nodo = buscarNodo(posicion);
+
+        if (nodo == null) {
+            return null;
+        }
+
+        return nodo.persona;
+    }
+
+    // Método auxiliar para buscar un nodo por su posición.
+    private Nodo buscarNodo(String posicion) {
+
+        if (!Posicion.esValida(posicion)) {
+            return null;
+        }
+
+        if (Posicion.esSujeto(posicion)) {
+            return raiz;
+        }
+
+        if (Posicion.esAscendiente(posicion)) {
+
+            int numero = Integer.parseInt(posicion);
+            String bits = Integer.toBinaryString(numero);
+
+            Nodo actual = raiz;
+
+            for (int i = 1; i < bits.length(); i++) {
+
+                if (actual == null) {
+                    return null;
+                }
+
+                if (bits.charAt(i) == '0') {
+                    actual = actual.padre;
+                } else {
+                    actual = actual.madre;
+                }
+            }
+
+            return actual;
+        }
+
+        String[] partes = posicion.split("\\.");
+        Nodo actual = raiz;
+
+        for (int i = 1; i < partes.length; i++) {
+
+            int ordenBuscado = Integer.parseInt(partes[i]);
+            Nodo encontrado = null;
+
+            for (Nodo hijo : actual.hijos) {
+
+                if (Posicion.orden(
+                        hijo.persona.getPosicion()) == ordenBuscado) {
+                    encontrado = hijo;
+                    break;
+                }
+            }
+
+            if (encontrado == null) {
+                return null;
+            }
+
+            actual = encontrado;
+        }
+
+        return actual;
     }
 
     /** @return true si hay alguien en esa posición (false también si la posición no es válida) */
     public boolean contiene(String posicion) {
         // TODO Etapa 2
-        throw new UnsupportedOperationException("TODO: contiene");
+        return buscarNodo(posicion) != null;
     }
 
     /**
@@ -87,7 +185,88 @@ public class ArbolGenealogico {
      */
     public Persona agregar(Persona persona) {
         // TODO Etapa 2
-        throw new UnsupportedOperationException("TODO: agregar");
+        if (persona == null) {
+            throw new IllegalArgumentException(
+                    "La persona no puede ser nula");
+        }
+
+        persona.validar();
+
+        String posicion = persona.getPosicion();
+
+        if (contiene(posicion)) {
+            throw new ArbolInvalidoException(
+                    "Ya existe una persona en esa posicion");
+        }
+
+        if (Posicion.esAscendiente(posicion)) {
+
+            String posicionHijo =
+                    Posicion.posicionDelHijoEnLinea(posicion);
+
+            Nodo hijo = buscarNodo(posicionHijo);
+
+            if (hijo == null) {
+                throw new ArbolInvalidoException(
+                        "No existe el hijo del ascendiente");
+            }
+
+            if (persona.getNacimiento() >=
+                    hijo.persona.getNacimiento()) {
+                throw new ArbolInvalidoException(
+                        "El ascendiente debe nacer antes que su hijo");
+            }
+
+            Nodo nuevo = new Nodo(persona);
+            int numero = Integer.parseInt(posicion);
+
+            if (numero % 2 == 0) {
+                hijo.padre = nuevo;
+            } else {
+                hijo.madre = nuevo;
+            }
+
+            cantidad++;
+            return persona;
+        }
+
+        if (Posicion.esDescendiente(posicion)) {
+
+            String posicionProgenitor =
+                    Posicion.posicionDelProgenitor(posicion);
+
+            Nodo progenitor = buscarNodo(posicionProgenitor);
+
+            if (progenitor == null) {
+                throw new ArbolInvalidoException(
+                        "No existe el progenitor");
+            }
+
+            if (persona.getNacimiento() <=
+                    progenitor.persona.getNacimiento()) {
+                throw new ArbolInvalidoException(
+                        "El descendiente debe nacer despues de su progenitor");
+            }
+
+            Nodo nuevo = new Nodo(persona);
+            int ordenNuevo = Posicion.orden(posicion);
+            int indice = 0;
+
+            while (indice < progenitor.hijos.size()
+                    && Posicion.orden(
+                            progenitor.hijos.get(indice)
+                                    .persona.getPosicion()) < ordenNuevo) {
+                indice++;
+            }
+
+            progenitor.hijos.add(indice, nuevo);
+
+            cantidad++;
+            return persona;
+        }
+
+        throw new ArbolInvalidoException(
+                "No se puede agregar otro sujeto");
     }
 
     /**
@@ -101,7 +280,26 @@ public class ArbolGenealogico {
      */
     public Persona agregarPadre(String posicion, String nombre, int nacimiento, Integer fallecimiento) {
         // TODO Etapa 2
-        throw new UnsupportedOperationException("TODO: agregarPadre");
+        if (!(Posicion.esSujeto(posicion)
+                || Posicion.esAscendiente(posicion))
+                || !contiene(posicion)) {
+
+            throw new ArbolInvalidoException(
+                    "La posicion no permite agregar un padre");
+        }
+
+        String nuevaPosicion =
+                Posicion.posicionDelPadre(posicion);
+
+        if (!Posicion.esAhnentafel(nuevaPosicion)) {
+            throw new ArbolInvalidoException(
+                    "Se excede el limite de ascendientes");
+        }
+
+        Persona persona = new Persona(
+                nuevaPosicion, nombre, nacimiento, fallecimiento);
+
+        return agregar(persona);
     }
 
     /**
@@ -109,7 +307,26 @@ public class ArbolGenealogico {
      */
     public Persona agregarMadre(String posicion, String nombre, int nacimiento, Integer fallecimiento) {
         // TODO Etapa 2
-        throw new UnsupportedOperationException("TODO: agregarMadre");
+        if (!(Posicion.esSujeto(posicion)
+                || Posicion.esAscendiente(posicion))
+                || !contiene(posicion)) {
+
+            throw new ArbolInvalidoException(
+                    "La posicion no permite agregar una madre");
+        }
+
+        String nuevaPosicion =
+                Posicion.posicionDeLaMadre(posicion);
+
+        if (!Posicion.esAhnentafel(nuevaPosicion)) {
+            throw new ArbolInvalidoException(
+                    "Se excede el limite de ascendientes");
+        }
+
+        Persona persona = new Persona(
+                nuevaPosicion, nombre, nacimiento, fallecimiento);
+
+        return agregar(persona);
     }
 
     /**
@@ -124,7 +341,39 @@ public class ArbolGenealogico {
      */
     public Persona agregarHijo(String posicion, String nombre, int nacimiento, Integer fallecimiento) {
         // TODO Etapa 2
-        throw new UnsupportedOperationException("TODO: agregarHijo");
+        if (!(Posicion.esSujeto(posicion)
+                || Posicion.esDescendiente(posicion))
+                || !contiene(posicion)) {
+
+            throw new ArbolInvalidoException(
+                    "La posicion no permite agregar hijos");
+        }
+
+        Nodo progenitor = buscarNodo(posicion);
+        int mayor = 0;
+
+        for (Nodo hijo : progenitor.hijos) {
+
+            int numero = Posicion.orden(
+                    hijo.persona.getPosicion());
+
+            if (numero > mayor) {
+                mayor = numero;
+            }
+        }
+
+        String nuevaPosicion =
+                posicion + "." + (mayor + 1);
+
+        if (!Posicion.esDAboville(nuevaPosicion)) {
+            throw new ArbolInvalidoException(
+                    "Se excede el limite de descendientes");
+        }
+
+        Persona persona = new Persona(
+                nuevaPosicion, nombre, nacimiento, fallecimiento);
+
+        return agregar(persona);
     }
 
     /**
@@ -138,7 +387,78 @@ public class ArbolGenealogico {
      */
     public int eliminar(String posicion) {
         // TODO Etapa 2
-        throw new UnsupportedOperationException("TODO: eliminar");
+        if (Posicion.esSujeto(posicion)) {
+            throw new ArbolInvalidoException(
+                    "No se puede eliminar el sujeto");
+        }
+
+        Nodo nodo = buscarNodo(posicion);
+
+        if (nodo == null) {
+            throw new ArbolInvalidoException(
+                    "La persona no existe en el arbol");
+        }
+
+        int eliminados;
+
+        if (Posicion.esAscendiente(posicion)) {
+
+            eliminados = contarSubarbolAscendente(nodo);
+
+            String posicionHijo =
+                    Posicion.posicionDelHijoEnLinea(posicion);
+
+            Nodo hijo = buscarNodo(posicionHijo);
+            int numero = Integer.parseInt(posicion);
+
+            if (numero % 2 == 0) {
+                hijo.padre = null;
+            } else {
+                hijo.madre = null;
+            }
+
+        } else {
+
+            eliminados = contarSubarbolDescendente(nodo);
+
+            String posicionProgenitor =
+                    Posicion.posicionDelProgenitor(posicion);
+
+            Nodo progenitor = buscarNodo(posicionProgenitor);
+            progenitor.hijos.remove(nodo);
+        }
+
+        cantidad -= eliminados;
+
+        return eliminados;
+    }
+
+    // Método auxiliar para contar ascendientes.
+    private int contarSubarbolAscendente(Nodo nodo) {
+
+        if (nodo == null) {
+            return 0;
+        }
+
+        return 1
+                + contarSubarbolAscendente(nodo.padre)
+                + contarSubarbolAscendente(nodo.madre);
+    }
+
+    // Método auxiliar para contar descendientes.
+    private int contarSubarbolDescendente(Nodo nodo) {
+
+        if (nodo == null) {
+            return 0;
+        }
+
+        int total = 1;
+
+        for (Nodo hijo : nodo.hijos) {
+            total += contarSubarbolDescendente(hijo);
+        }
+
+        return total;
     }
 
     /**
@@ -149,18 +469,65 @@ public class ArbolGenealogico {
      */
     public List<Persona> miembros() {
         // TODO Etapa 2
-        throw new UnsupportedOperationException("TODO: miembros");
+        List<Persona> lista = new ArrayList<>();
+
+        lista.add(raiz.persona);
+        lista.addAll(ascendientes());
+        lista.addAll(descendientes());
+
+        return lista;
     }
 
     /** @return solo los ascendientes, por número Ahnentafel ascendente (sin el sujeto) */
     public List<Persona> ascendientes() {
         // TODO Etapa 2
-        throw new UnsupportedOperationException("TODO: ascendientes");
+        List<Persona> lista = new ArrayList<>();
+
+        recorrerAscendientes(raiz, lista);
+
+        lista.sort(Comparator.comparingInt(
+                persona -> Integer.parseInt(
+                        persona.getPosicion())));
+
+        return lista;
     }
 
     /** @return solo los descendientes, en preorden (sin el sujeto) */
     public List<Persona> descendientes() {
         // TODO Etapa 2
-        throw new UnsupportedOperationException("TODO: descendientes");
+        List<Persona> lista = new ArrayList<>();
+
+        recorrerDescendientes(raiz, lista);
+
+        return lista;
+    }
+
+    // Método auxiliar para recorrer los ascendientes.
+    private void recorrerAscendientes(
+            Nodo nodo, List<Persona> lista) {
+
+        if (nodo == null) {
+            return;
+        }
+
+        if (nodo.padre != null) {
+            lista.add(nodo.padre.persona);
+            recorrerAscendientes(nodo.padre, lista);
+        }
+
+        if (nodo.madre != null) {
+            lista.add(nodo.madre.persona);
+            recorrerAscendientes(nodo.madre, lista);
+        }
+    }
+
+    // Método auxiliar para recorrer los descendientes.
+    private void recorrerDescendientes(
+            Nodo nodo, List<Persona> lista) {
+
+        for (Nodo hijo : nodo.hijos) {
+            lista.add(hijo.persona);
+            recorrerDescendientes(hijo, lista);
+        }
     }
 }
